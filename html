@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to ASCII Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Use Inter font and ensure good readability */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Styling the main ASCII output area */
+        #ascii-output {
+            white-space: pre;
+            word-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            letter-spacing: 0;
+            font-size: 0.5rem; /* Very small font for detail */
+            line-height: 1;
+            background-color: #1f2937; /* Dark background */
+            color: #d1d5db; /* Light gray text */
+            padding: 1rem;
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            min-height: 100px; /* Ensure visibility even if empty */
+            font-family: 'Courier New', monospace; /* Monospaced font is crucial for ASCII art */
+        }
+        
+        /* Utility for hiding the processing canvas */
+        #temp-canvas {
+            display: none;
+        }
+
+        /* Hide the default file input button */
+        #file-input {
+            display: none;
+        }
+
+        /* Custom style for the number inputs to look consistent */
+        .number-input-style {
+            -moz-appearance: textfield; /* Firefox */
+        }
+        .number-input-style::-webkit-inner-spin-button, 
+        .number-input-style::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0; /* Chrome, Safari, Edge */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8 flex justify-center">
+
+    <div class="w-full max-w-5xl space-y-8">
+
+        <header class="text-center">
+            <h1 class="text-4xl font-bold text-indigo-400 mb-2">ASCII Art Generator</h1>
+            <p class="text-gray-400">Convert any image into beautiful, retro text art.</p>
+        </header>
+
+        <!-- Configuration Panel -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-6">
+            <h2 class="text-2xl font-semibold text-white border-b border-gray-700 pb-3 mb-4">Settings</h2>
+
+            <!-- File Upload -->
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                <label for="file-input" class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200 text-white font-bold py-3 px-6 rounded-lg shadow-md flex-shrink-0">
+                    Upload Image
+                </label>
+                <span id="file-name" class="text-gray-400 truncate">No image selected.</span>
+                <input type="file" id="file-input" accept="image/*">
+            </div>
+
+            <!-- Resolution Controls: Height and Width -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Height (Lines) Control -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Height (Lines High)</label>
+                    
+                    <!-- Number Input and Buttons -->
+                    <div class="flex items-center space-x-2 mb-3">
+                        <button id="lines-decrement" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-bold transition-colors w-10 h-10 flex items-center justify-center text-xl shadow-md" aria-label="Decrement Lines">-</button>
+                        
+                        <input type="number" id="lines-input" value="100" min="1" max="1000" class="number-input-style w-20 text-center rounded-lg bg-gray-700 border-gray-600 text-white shadow-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                        
+                        <button id="lines-increment" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-bold transition-colors w-10 h-10 flex items-center justify-center text-xl shadow-md" aria-label="Increment Lines">+</button>
+                    </div>
+
+                    <!-- Slider -->
+                    <input type="range" id="lines-slider" min="1" max="1000" value="100" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-xs text-gray-500 mt-1">Controls the number of vertical characters (resolution).</p>
+                </div>
+
+                <!-- Width (Columns) Control -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Width (Columns Wide)</label>
+                    
+                     <!-- Number Input and Buttons -->
+                    <div class="flex items-center space-x-2 mb-3">
+                        <button id="columns-decrement" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-bold transition-colors w-10 h-10 flex items-center justify-center text-xl shadow-md" aria-label="Decrement Columns">-</button>
+                        
+                        <input type="number" id="columns-input" value="200" min="1" max="2000" class="number-input-style w-20 text-center rounded-lg bg-gray-700 border-gray-600 text-white shadow-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                        
+                        <button id="columns-increment" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-bold transition-colors w-10 h-10 flex items-center justify-center text-xl shadow-md" aria-label="Increment Columns">+</button>
+                    </div>
+                    
+                    <!-- Slider -->
+                    <input type="range" id="columns-slider" min="1" max="2000" value="200" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-xs text-gray-500 mt-1">Controls the number of horizontal characters (resolution).</p>
+                </div>
+            </div>
+
+            <!-- New ASCII Gradient Control -->
+            <div class="border-t border-gray-700 pt-6">
+                <label for="gradient-select" class="block text-sm font-medium text-gray-300 mb-2">ASCII Gradient Style</label>
+                <select id="gradient-select" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white shadow-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                    <!-- Options populated by JS -->
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Choose the character set used to represent brightness levels (darkest to lightest).</p>
+            </div>
+
+            <!-- Output Display Size Controls -->
+            <div class="grid grid-cols-2 gap-4 pt-6 border-t border-gray-700">
+                 <div>
+                    <label for="max-width-input" class="block text-sm font-medium text-gray-300">Max Output Width (px)</label>
+                    <input type="number" id="max-width-input" value="800" min="200" max="2000" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white shadow-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="max-height-input" class="block text-sm font-medium text-gray-300">Max Output Height (px)</label>
+                    <input type="number" id="max-height-input" value="600" min="100" max="1200" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white shadow-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Preview and Output Section -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-4">
+            <h2 class="text-2xl font-semibold text-white border-b border-gray-700 pb-3">ASCII Output</h2>
+            <div class="flex justify-center bg-gray-700 rounded-xl overflow-hidden shadow-inner">
+                <pre id="ascii-output" style="max-width: 800px; max-height: 600px;">
+        Upload an image and adjust the settings above 
+        to see the ASCII art appear here! 
+                </pre>
+            </div>
+             <button id="copy-button" class="w-full bg-green-600 hover:bg-green-700 transition-colors duration-200 text-white font-bold py-3 rounded-lg shadow-md mt-4 disabled:opacity-50" disabled>
+                Copy ASCII Art to Clipboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden Canvas for Image Processing -->
+    <canvas id="temp-canvas"></canvas>
+
+    <script>
+        // --- Setup and Globals ---
+        const fileInput = document.getElementById('file-input');
+        const fileNameSpan = document.getElementById('file-name');
+        
+        // Resolution Controls
+        const linesSlider = document.getElementById('lines-slider');
+        const columnsSlider = document.getElementById('columns-slider');
+        const linesInput = document.getElementById('lines-input');
+        const linesIncrementButton = document.getElementById('lines-increment');
+        const linesDecrementButton = document.getElementById('lines-decrement');
+        const columnsInput = document.getElementById('columns-input');
+        const columnsIncrementButton = document.getElementById('columns-increment');
+        const columnsDecrementButton = document.getElementById('columns-decrement');
+
+        // Gradient Control (NEW)
+        const gradientSelect = document.getElementById('gradient-select');
+
+        const maxWidthInput = document.getElementById('max-width-input');
+        const maxHeightInput = document.getElementById('max-height-input');
+        const asciiOutput = document.getElementById('ascii-output');
+        const tempCanvas = document.getElementById('temp-canvas');
+        const copyButton = document.getElementById('copy-button');
+        const ctx = tempCanvas.getContext('2d');
+        
+        let currentImage = null;
+        let currentAsciiText = "";
+
+        // ASCII character sets (density map from dark to light)
+        const ASCII_GRADIENTS = {
+            'current': "@#W$9876543210?!abc;:+=-,._ ", // The user's previous map
+            'standard': "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,^'. ", // 70 characters
+            'simple': " .:-=+*#%@", // 10 characters (Classic Grayscale)
+            'binary': "@ " // 2 characters (Max Black/White)
+        };
+        const DEFAULT_GRADIENT = 'current';
+
+        // --- Core Functions ---
+
+        /**
+         * Initializes the gradient select dropdown with available options.
+         */
+        function initializeGradientSelect() {
+            for (const key in ASCII_GRADIENTS) {
+                const option = document.createElement('option');
+                option.value = key;
+                // Capitalize the first letter for display
+                option.textContent = key.charAt(0).toUpperCase() + key.slice(1); 
+                gradientSelect.appendChild(option);
+            }
+            gradientSelect.value = DEFAULT_GRADIENT; // Set initial value
+        }
+
+
+        /**
+         * Maps a brightness value (0-255) to an ASCII character using the selected gradient.
+         * @param {number} brightness - The grayscale value (0 = black, 255 = white).
+         * @returns {string} The corresponding ASCII character.
+         */
+        function getAsciiChar(brightness) {
+            const currentMap = ASCII_GRADIENTS[gradientSelect.value] || ASCII_GRADIENTS[DEFAULT_GRADIENT];
+            const mapLength = currentMap.length;
+
+            // Invert brightness (0 = black/dark, want high index for dense char)
+            const invertedBrightness = 255 - brightness; 
+            const index = Math.floor((invertedBrightness / 256) * mapLength);
+            
+            return currentMap[Math.min(index, mapLength - 1)];
+        }
+
+        /**
+         * Processes the image and generates the ASCII art based on current settings.
+         */
+        function generateAscii() {
+            if (!currentImage) {
+                asciiOutput.textContent = "Please upload an image first.";
+                return;
+            }
+
+            const image = currentImage;
+            
+            // 1. Get Target ASCII Dimensions from Inputs (now synced to the value)
+            const targetHeight = parseInt(linesInput.value);
+            const targetWidth = parseInt(columnsInput.value); 
+
+            // Validate dimensions to prevent errors
+            if (targetWidth < 1 || targetHeight < 1) {
+                asciiOutput.textContent = "Height and Width must be greater than 0.";
+                return;
+            }
+            
+            // Set the hidden canvas size for processing
+            tempCanvas.width = targetWidth;
+            tempCanvas.height = targetHeight;
+
+            // 2. Draw Image and Get Pixel Data
+            ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+            const data = imageData.data;
+
+            // 3. Generate ASCII String
+            let ascii = "";
+            for (let y = 0; y < targetHeight; y++) {
+                for (let x = 0; x < targetWidth; x++) {
+                    const i = (y * targetWidth + x) * 4;
+                    
+                    // Extract RGB values
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Calculate Luma/Brightness (ITU-R BT.709 approximation)
+                    const brightness = (0.2126 * r + 0.7152 * g + 0.0722 * b);
+                    
+                    ascii += getAsciiChar(brightness);
+                }
+                ascii += '\n';
+            }
+            
+            // 4. Update UI
+            currentAsciiText = ascii;
+            asciiOutput.textContent = ascii;
+            copyButton.disabled = false;
+        }
+
+        /**
+         * Updates the max-width and max-height CSS properties for the output container.
+         */
+        function updateOutputSize() {
+            const maxWidth = parseInt(maxWidthInput.value) || 800;
+            const maxHeight = parseInt(maxHeightInput.value) || 600;
+            
+            asciiOutput.style.maxWidth = `${maxWidth}px`;
+            asciiOutput.style.maxHeight = `${maxHeight}px`;
+        }
+        
+        // --- Event Listeners ---
+
+        // 1. File Input Change Handler
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                fileNameSpan.textContent = "No image selected.";
+                currentImage = null;
+                return;
+            }
+
+            fileNameSpan.textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    currentImage = img;
+                    generateAscii();
+                };
+                img.onerror = () => {
+                     console.error("Error loading image.");
+                     fileNameSpan.textContent = "Error loading image. Try another file.";
+                }
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Throttling and Control Logic
+        let throttleTimer;
+        const throttledGenerateAscii = () => {
+            clearTimeout(throttleTimer);
+            throttleTimer = setTimeout(() => {
+                generateAscii();
+            }, 100); // Wait 100ms after last change
+        };
+
+        /**
+         * Sets up synchronization between number input, slider, and increment/decrement buttons.
+         */
+        function setupResolutionControl(inputEl, sliderEl, incBtn, decBtn, minVal, maxVal) {
+            
+            // Function to ensure value is within bounds and update all connected elements
+            const updateAll = () => {
+                let value = parseInt(inputEl.value) || minVal;
+                // Clamp value between min and max
+                value = Math.max(minVal, Math.min(maxVal, value));
+                
+                inputEl.value = value;
+                sliderEl.value = value;
+                
+                // Regenerate ASCII
+                throttledGenerateAscii(); 
+            };
+
+            // 1. Slider updates Input (Throttled for performance while dragging)
+            sliderEl.addEventListener('input', () => {
+                inputEl.value = sliderEl.value;
+                throttledGenerateAscii();
+            });
+            
+            // 2. Input updates Slider (Uses 'change' for final value, throttled 'input' for typing)
+            inputEl.addEventListener('input', updateAll);
+            inputEl.addEventListener('change', updateAll); // Immediate update on focus loss/Enter
+
+            // 3. Buttons update Input/Slider (Immediate update)
+            incBtn.addEventListener('click', () => {
+                let value = parseInt(inputEl.value) || minVal;
+                inputEl.value = Math.min(maxVal, value + 1);
+                updateAll();
+            });
+
+            decBtn.addEventListener('click', () => {
+                let value = parseInt(inputEl.value) || minVal;
+                inputEl.value = Math.max(minVal, value - 1);
+                updateAll();
+            });
+        }
+        
+        // Setup the resolution controls with min/max values
+        const linesMin = 1;
+        const linesMax = 1000;
+        const columnsMin = 1;
+        const columnsMax = 2000;
+
+        setupResolutionControl(linesInput, linesSlider, linesIncrementButton, linesDecrementButton, linesMin, linesMax);
+        setupResolutionControl(columnsInput, columnsSlider, columnsIncrementButton, columnsDecrementButton, columnsMin, columnsMax);
+
+        // 3. Gradient Select Change Handler (NEW)
+        gradientSelect.addEventListener('change', throttledGenerateAscii);
+
+        // 4. Control handlers for Output Display Size
+        const displayControls = [
+            maxWidthInput, 
+            maxHeightInput
+        ];
+
+        displayControls.forEach(control => {
+            control.addEventListener('input', updateOutputSize);
+        });
+        
+        // 5. Copy Button Handler
+        copyButton.addEventListener('click', () => {
+            // Check for clipboard support (optional, but good practice)
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(currentAsciiText)
+                    .then(() => {
+                        copyButton.textContent = "Copied!";
+                        setTimeout(() => copyButton.textContent = "Copy ASCII Art to Clipboard", 1500);
+                    })
+                    .catch(err => {
+                        console.error('Could not copy text: ', err);
+                        fallbackCopyTextToClipboard(currentAsciiText);
+                    });
+            } else {
+                 fallbackCopyTextToClipboard(currentAsciiText);
+            }
+        });
+
+        // Fallback copy function for older browsers/iFrames (as required by instructions)
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";  // Avoid scrolling to bottom
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                copyButton.textContent = successful ? "Copied!" : "Failed to copy.";
+                setTimeout(() => copyButton.textContent = "Copy ASCII Art to Clipboard", 1500);
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // Initialize display sizes and gradient options on load
+        window.onload = () => {
+            initializeGradientSelect();
+            updateOutputSize();
+        };
+
+    </script>
+</body>
+</html>
